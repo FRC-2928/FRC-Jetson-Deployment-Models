@@ -17,6 +17,7 @@ from utils.camera import add_camera_args, Camera
 from utils.display import open_window, set_display, show_fps
 from utils.visualization import BBoxVisualization
 from utils.yolo_with_plugins import TrtYOLO
+from utils.mjpeg import MjpegServer
 
 from wpi_helpers import ConfigParser, WPINetworkTables, ModelConfigParser, WPINetworkTables
 
@@ -51,7 +52,7 @@ def parse_args():
     return args
 
 
-def loop_and_detect(cam, trt_yolo, conf_th, vis, nt):
+def loop_and_detect(cam, trt_yolo, conf_th, vis, nt, mjpeg_server):
     """Continuously capture images from camera and do object detection.
 
     # Arguments
@@ -73,8 +74,12 @@ def loop_and_detect(cam, trt_yolo, conf_th, vis, nt):
         img = vis.draw_bboxes(img, boxes, confidence, label)
         img = show_fps(img, fps)
 
-        # Display stream to desktop window
-        cv2.imshow(WINDOW_NAME, img)
+        if mjpeg_server:
+            # Display stream to browser
+            mjpeg_server.send_img(img)
+        else:    
+            # Display stream to desktop window
+            cv2.imshow(WINDOW_NAME, img)
 
         toc = time.time()
         curr_fps = 1.0 / (toc - tic)
@@ -85,8 +90,8 @@ def loop_and_detect(cam, trt_yolo, conf_th, vis, nt):
         # Put data to Network Tables
         nt.put_data(boxes, confidence, label, fps)
 
-        key = cv2.waitKey(0)
-        if key == 27:  # ESC key: quit program
+        key = cv2.waitKey(1)
+        if key & 0xFF == ord('q'):
             break
         elif key == ord('F') or key == ord('f'):  # Toggle fullscreen
             full_scrn = not full_scrn
@@ -126,16 +131,25 @@ def main():
 
     if args.gui == True:
         print("Gui requested")
-    else:
-        print("Using mjpeg")   
-         
-    open_window(
+        open_window(
         WINDOW_NAME, 'Camera TensorRT YOLO Demo',
         cam.img_width, cam.img_height)
-    loop_and_detect(cam, trt_yolo, args.conf_thresh, vis=vis, nt=nt)
-
-    cam.release()
-    cv2.destroyAllWindows()
+        loop_and_detect(cam, trt_yolo, model_config.confidence_threshold, vis, nt, 
+                        mjpeg_server=False)
+        cam.release()
+        cv2.destroyAllWindows()
+    else:
+        # Use the mjpeg server (default)
+        mjpeg_server = MjpegServer(port=args.mjpeg_port)
+        print('MJPEG server started...')
+        try:
+            loop_and_detect(cam, trt_yolo, model_config.confidence_threshold, vis, nt,
+                            mjpeg_server=mjpeg_server)
+        except Exception as e:
+            print(e)
+        finally:
+            mjpeg_server.shutdown()
+            cam.release() 
 
 
 if __name__ == '__main__':
