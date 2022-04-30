@@ -13,7 +13,6 @@ import cv2
 import pycuda.autoinit  # This is needed for initializing CUDA driver
 
 from pathlib import Path
-# from utils.yolo_classes import get_cls_dict
 from utils.camera import add_camera_args, Camera
 from utils.display import open_window, set_display, show_fps
 from utils.visualization import BBoxVisualization
@@ -33,8 +32,9 @@ def parse_args():
     parser = argparse.ArgumentParser(description=desc)
     parser = add_camera_args(parser)
     parser.add_argument(
-        '-c', '--category_num', type=int, default=80,
-        help='number of object categories [80]')
+        '-g', '--gui', action='store_true',
+        help='use desktop gui for display [False]')
+    parser.set_defaults(gui=False)    
     parser.add_argument(
         '-t', '--conf_thresh', type=float, default=0.3,
         help='set the detection confidence threshold')
@@ -85,7 +85,7 @@ def loop_and_detect(cam, trt_yolo, conf_th, vis, nt):
         # Put data to Network Tables
         nt.put_data(boxes, confidence, label, fps)
 
-        key = cv2.waitKey(1)
+        key = cv2.waitKey(0)
         if key == 27:  # ESC key: quit program
             break
         elif key == ord('F') or key == ord('f'):  # Toggle fullscreen
@@ -95,8 +95,6 @@ def loop_and_detect(cam, trt_yolo, conf_th, vis, nt):
 
 def main():
     args = parse_args()
-    # if args.category_num <= 0:
-    #     raise SystemExit('ERROR: bad category_num (%d)!' % args.category_num)
     if not os.path.isfile('FRC-Jetson-Deployment-Models/%s.trt' % args.model):
         raise SystemExit('ERROR: file (FRC-Jetson-Deployment-Models/%s.trt) not found!' % args.model)
 
@@ -118,7 +116,6 @@ def main():
     print("Confidence Threshold:", model_config.confidence_threshold)
 
     # Load the model
-    # cls_dict = get_cls_dict(args.category_num)
     vis = BBoxVisualization(model_config.labelMap)
     trt_yolo = TrtYOLO(args.model, model_config.classes, args.letter_box)
 
@@ -127,6 +124,11 @@ def main():
     hardware_type = "USB Camera"
     nt = WPINetworkTables(config_parser.team, hardware_type, model_config.labelMap)
 
+    if args.gui == True:
+        print("Gui requested")
+    else:
+        print("Using mjpeg")   
+         
     open_window(
         WINDOW_NAME, 'Camera TensorRT YOLO Demo',
         cam.img_width, cam.img_height)

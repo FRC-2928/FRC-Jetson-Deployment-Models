@@ -13,6 +13,7 @@ import argparse
 import cv2
 import pycuda.autoinit  # This is needed for initializing CUDA driver
 
+from pathlib import Path
 from utils.yolo_classes import get_cls_dict
 from utils.camera import add_camera_args, Camera
 from utils.display import show_fps
@@ -20,7 +21,7 @@ from utils.visualization import BBoxVisualization
 from utils.mjpeg import MjpegServer
 from utils.yolo_with_plugins import TrtYOLO
 
-from wpi_helpers import ConfigParser, PopulateNTData
+from wpi_helpers import ConfigParser, ModelConfigParser, WPINetworkTables
 
 def parse_args():
     """Parse input arguments."""
@@ -81,8 +82,6 @@ def loop_and_detect(cam, trt_yolo, conf_th, vis, nt, mjpeg_server):
 
 def main():
     args = parse_args()
-    if args.category_num <= 0:
-        raise SystemExit('ERROR: bad category_num (%d)!' % args.category_num)
     if not os.path.isfile('FRC-Jetson-Deployment-Models/%s.trt' % args.model):
         raise SystemExit('ERROR: file (FRC-Jetson-Deployment-Models/%s.trt) not found!' % args.model)
 
@@ -94,15 +93,23 @@ def main():
     config_file = "FRC-Jetson-Deployment-Models/frc.json"
     config_parser = ConfigParser(config_file)    
 
+    ## Read the model configuration file
+    print("Loading network settings")
+    default_config_file = 'FRC-Jetson-Deployment-Models/rapid-react-config.json'
+    configPath = str((Path(__file__).parent / Path(default_config_file)).resolve().absolute())    
+    model_config = ModelConfigParser(configPath)
+    print(model_config.labelMap)
+    print("Classes:", model_config.classes)
+    print("Confidence Threshold:", model_config.confidence_threshold)
+
     # Load the model
-    cls_dict = get_cls_dict(args.category_num)
-    vis = BBoxVisualization(cls_dict)
+    vis = BBoxVisualization(model_config.labelMap)
     trt_yolo = TrtYOLO(args.model, args.category_num, args.letter_box)
 
     # Connect to WPILib Network Tables
     print("Connecting to Network Tables")
     hardware_type = "USB Camera"
-    nt = PopulateNTData(config_parser.team, hardware_type, cls_dict)
+    nt = WPINetworkTables(config_parser.team, hardware_type, model_config.labelMap)
 
     mjpeg_server = MjpegServer(port=args.mjpeg_port)
     print('MJPEG server started...')
