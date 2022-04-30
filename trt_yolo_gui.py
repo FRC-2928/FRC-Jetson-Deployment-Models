@@ -68,21 +68,27 @@ def loop_and_detect(cam, trt_yolo, conf_th, vis, nt, mjpeg_server):
     fps = 0.0
     tic = time.time()
     while True:
-        if cv2.getWindowProperty(WINDOW_NAME, 0) < 0:
-            break
+        if mjpeg_server == False:
+            if cv2.getWindowProperty(WINDOW_NAME, 0) < 0:
+                break
+
         img = cam.read()
         if img is None:
             break
+
+        # Get inference output
         boxes, confidence, label = trt_yolo.detect(img, conf_th)
+
+        # Draw bounding boxes and label frame
         img = vis.draw_bboxes(img, boxes, confidence, label)
         img = show_fps(img, fps)
 
-        if mjpeg_server:
-            # Display stream to browser
-            mjpeg_server.send_img(img)
-        else:    
+        if mjpeg_server == False:
             # Display stream to desktop window
             cv2.imshow(WINDOW_NAME, img)
+        else:               
+            # Display stream to browser
+            mjpeg_server.send_img(img)
 
         toc = time.time()
         curr_fps = 1.0 / (toc - tic)
@@ -93,12 +99,13 @@ def loop_and_detect(cam, trt_yolo, conf_th, vis, nt, mjpeg_server):
         # Put data to Network Tables
         nt.put_data(boxes, confidence, label, fps)
 
-        # key = cv2.waitKey(1)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-        # elif key == ord('F') or key == ord('f'):  # Toggle fullscreen
-        #     full_scrn = not full_scrn
-        #     set_display(WINDOW_NAME, full_scrn)
+        if mjpeg_server == False:
+            # key = cv2.waitKey(1)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+            # elif key == ord('F') or key == ord('f'):  # Toggle fullscreen
+            #     full_scrn = not full_scrn
+            #     set_display(WINDOW_NAME, full_scrn)
 
 
 def main():
