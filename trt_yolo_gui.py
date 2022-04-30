@@ -1,4 +1,4 @@
-"""trt_yolo.py
+"""trt_yolo_gui.py
 
 This script demonstrates how to do real-time object detection with
 TensorRT optimized YOLO engine.
@@ -71,16 +71,19 @@ def loop_and_detect(cam, trt_yolo, conf_th, vis):
         boxes, confidence, label = trt_yolo.detect(img, conf_th)
         img = vis.draw_bboxes(img, boxes, confidence, label)
         img = show_fps(img, fps)
-        cv2.imshow(WINDOW_NAME, img)
 
-        # Put data to Network Tables
-        PopulateNTData.put_data(boxes, confidence, label)
+        # Display stream to desktop window
+        cv2.imshow(WINDOW_NAME, img)
 
         toc = time.time()
         curr_fps = 1.0 / (toc - tic)
         # calculate an exponentially decaying average of fps number
         fps = curr_fps if fps == 0.0 else (fps*0.95 + curr_fps*0.05)
         tic = toc
+
+        # Put data to Network Tables
+        PopulateNTData.put_data(boxes, confidence, label, fps)
+
         key = cv2.waitKey(1)
         if key == 27:  # ESC key: quit program
             break

@@ -130,7 +130,7 @@ class PopulateNTData():
         self.counter = 0  
         self.startTime = time.monotonic()
 
-    def put_data(self, boxes, confidence, label):
+    def put_data(self, boxes, confidence, label, fps):
         
         for bb, cf, cl in zip(boxes, confidence, label):
             temp_entry = []
@@ -140,6 +140,7 @@ class PopulateNTData():
                                 "box": {"ymin": ymin, "xmin": xmin, "ymax": ymax, "xmax": xmax}, 
                                 "confidence": int(confidence * 100)})                      
             self.entry.setString(json.dumps(temp_entry))
-            self.fps_entry.setNumber((self.counter / (time.monotonic() - self.startTime)))
+            self.fps_entry.setNumber(fps)
+            # self.fps_entry.setNumber((self.counter / (time.monotonic() - self.startTime)))
             self.counter += 1
             
