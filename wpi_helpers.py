@@ -71,7 +71,7 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     """Handle requests in a separate thread."""
     pass
 
-class NetworkConfigParser:
+class ModelConfigParser:
     def __init__(self, path):
         """
         Parses the model config file and adjusts NNetManager values accordingly. 
@@ -105,9 +105,9 @@ class NetworkConfigParser:
             self.confidence_threshold = metadata.get("confidence_threshold", nnConfig.get("confidence_threshold", None))
             self.classes = metadata.get("classes", None)
 
-class PopulateNTData():
+class WPINetworkTables():
     """
-        PopulateNTData class populates inference data into the WPI Network Tables.
+        The WPINetworkTables class is used to send inference data back to the WPI program.
 
     # Arguments
       cls_dict: a dictionary used to translate class id to its name.
@@ -137,8 +137,8 @@ class PopulateNTData():
             cls_name = self.cls_dict.get(int(cl))
             xmin, ymin, xmax, ymax = bb[0], bb[1], bb[2], bb[3]
             temp_entry.append({"label": cls_name, 
-                                "box": {"ymin": ymin, "xmin": xmin, "ymax": ymax, "xmax": xmax}, 
-                                "confidence": int(confidence * 100)})                      
+                                "box": {"ymin": int(ymin), "xmin": int(xmin), "ymax": int(ymax), "xmax": int(xmax)}, 
+                                "confidence": float(cf)})                      
             self.entry.setString(json.dumps(temp_entry))
             self.fps_entry.setNumber(fps)
             # self.fps_entry.setNumber((self.counter / (time.monotonic() - self.startTime)))

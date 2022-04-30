@@ -12,13 +12,14 @@ import argparse
 import cv2
 import pycuda.autoinit  # This is needed for initializing CUDA driver
 
-from utils.yolo_classes import get_cls_dict
+from pathlib import Path
+# from utils.yolo_classes import get_cls_dict
 from utils.camera import add_camera_args, Camera
 from utils.display import open_window, set_display, show_fps
 from utils.visualization import BBoxVisualization
 from utils.yolo_with_plugins import TrtYOLO
 
-from wpi_helpers import ConfigParser, PopulateNTData
+from wpi_helpers import ConfigParser, WPINetworkTables, ModelConfigParser, WPINetworkTables
 
 
 WINDOW_NAME = 'TrtYOLODemo'
@@ -106,16 +107,25 @@ def main():
     # Get the team number for use in the Network Tables
     config_file = "FRC-Jetson-Deployment-Models/frc.json"
     config_parser = ConfigParser(config_file)    
+   
+    ## Read the model configuration file
+    print("Loading network settings")
+    default_config_file = 'rapid-react-config.json'
+    configPath = str((Path(__file__).parent / Path(default_config_file)).resolve().absolute())    
+    model_config = ModelConfigParser(configPath)
+    print(model_config.labelMap)
+    print("Classes:", model_config.classes)
+    print("Confidence Threshold:", model_config.confidence_threshold)
 
     # Load the model
-    cls_dict = get_cls_dict(args.category_num)
-    vis = BBoxVisualization(cls_dict)
+    # cls_dict = get_cls_dict(args.category_num)
+    vis = BBoxVisualization(model_config.classes)
     trt_yolo = TrtYOLO(args.model, args.category_num, args.letter_box)
 
     # Connect to WPILib Network Tables
     print("Connecting to Network Tables")
     hardware_type = "USB Camera"
-    nt = PopulateNTData(config_parser.team, hardware_type, cls_dict)
+    nt = WPINetworkTables(config_parser.team, hardware_type, model_config.classes)
 
     open_window(
         WINDOW_NAME, 'Camera TensorRT YOLO Demo',
