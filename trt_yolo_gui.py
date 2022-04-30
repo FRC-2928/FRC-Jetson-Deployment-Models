@@ -50,7 +50,7 @@ def parse_args():
     return args
 
 
-def loop_and_detect(cam, trt_yolo, conf_th, vis):
+def loop_and_detect(cam, trt_yolo, conf_th, vis, nt):
     """Continuously capture images from camera and do object detection.
 
     # Arguments
@@ -82,7 +82,7 @@ def loop_and_detect(cam, trt_yolo, conf_th, vis):
         tic = toc
 
         # Put data to Network Tables
-        PopulateNTData.put_data(boxes, confidence, label, fps)
+        nt.put_data(boxes, confidence, label, fps)
 
         key = cv2.waitKey(1)
         if key == 27:  # ESC key: quit program
@@ -96,31 +96,31 @@ def main():
     args = parse_args()
     if args.category_num <= 0:
         raise SystemExit('ERROR: bad category_num (%d)!' % args.category_num)
-    if not os.path.isfile('yolo/%s.trt' % args.model):
-        raise SystemExit('ERROR: file (yolo/%s.trt) not found!' % args.model)
+    if not os.path.isfile('FRC-Jetson-Deployment-Models/%s.trt' % args.model):
+        raise SystemExit('ERROR: file (FRC-Jetson-Deployment-Models/%s.trt) not found!' % args.model)
 
     cam = Camera(args)
     if not cam.isOpened():
         raise SystemExit('ERROR: failed to open camera!')
 
     # Get the team number for use in the Network Tables
-    config_file = "frc.json"
+    config_file = "FRC-Jetson-Deployment-Models/frc.json"
     config_parser = ConfigParser(config_file)    
-
-    # Connect to WPILib Network Tables
-    print("Connecting to Network Tables")
-    hardware_type = "USB Camera"
-    PopulateNTData(config_parser.team, hardware_type, cls_dict)
 
     # Load the model
     cls_dict = get_cls_dict(args.category_num)
     vis = BBoxVisualization(cls_dict)
     trt_yolo = TrtYOLO(args.model, args.category_num, args.letter_box)
 
+    # Connect to WPILib Network Tables
+    print("Connecting to Network Tables")
+    hardware_type = "USB Camera"
+    nt = PopulateNTData(config_parser.team, hardware_type, cls_dict)
+
     open_window(
         WINDOW_NAME, 'Camera TensorRT YOLO Demo',
         cam.img_width, cam.img_height)
-    loop_and_detect(cam, trt_yolo, args.conf_thresh, vis=vis)
+    loop_and_detect(cam, trt_yolo, args.conf_thresh, vis=vis, nt=nt)
 
     cam.release()
     cv2.destroyAllWindows()
