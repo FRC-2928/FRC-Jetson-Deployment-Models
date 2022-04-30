@@ -95,7 +95,8 @@ class ModelConfigParser:
         with configPath.open() as f:
             configJson = json.load(f)
             nnConfig = configJson.get("nn_config", {})
-            self.labelMap = configJson.get("mappings", {}).get("labels", None)
+            labels = configJson.get("mappings", {}).get("labels", None)
+            self.labelMap = {i: n for i, n in enumerate(labels)}
             self.nnFamily = nnConfig.get("NN_family", None)
             self.outputFormat = nnConfig.get("output_format", "raw")
             metadata = nnConfig.get("NN_specific_metadata", {})

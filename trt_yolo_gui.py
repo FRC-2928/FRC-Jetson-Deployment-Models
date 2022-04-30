@@ -95,8 +95,8 @@ def loop_and_detect(cam, trt_yolo, conf_th, vis, nt):
 
 def main():
     args = parse_args()
-    if args.category_num <= 0:
-        raise SystemExit('ERROR: bad category_num (%d)!' % args.category_num)
+    # if args.category_num <= 0:
+    #     raise SystemExit('ERROR: bad category_num (%d)!' % args.category_num)
     if not os.path.isfile('FRC-Jetson-Deployment-Models/%s.trt' % args.model):
         raise SystemExit('ERROR: file (FRC-Jetson-Deployment-Models/%s.trt) not found!' % args.model)
 
@@ -110,7 +110,7 @@ def main():
    
     ## Read the model configuration file
     print("Loading network settings")
-    default_config_file = 'rapid-react-config.json'
+    default_config_file = 'FRC-Jetson-Deployment-Models/rapid-react-config.json'
     configPath = str((Path(__file__).parent / Path(default_config_file)).resolve().absolute())    
     model_config = ModelConfigParser(configPath)
     print(model_config.labelMap)
@@ -119,13 +119,13 @@ def main():
 
     # Load the model
     # cls_dict = get_cls_dict(args.category_num)
-    vis = BBoxVisualization(model_config.classes)
-    trt_yolo = TrtYOLO(args.model, args.category_num, args.letter_box)
+    vis = BBoxVisualization(model_config.labelMap)
+    trt_yolo = TrtYOLO(args.model, model_config.classes, args.letter_box)
 
     # Connect to WPILib Network Tables
     print("Connecting to Network Tables")
     hardware_type = "USB Camera"
-    nt = WPINetworkTables(config_parser.team, hardware_type, model_config.classes)
+    nt = WPINetworkTables(config_parser.team, hardware_type, model_config.labelMap)
 
     open_window(
         WINDOW_NAME, 'Camera TensorRT YOLO Demo',
