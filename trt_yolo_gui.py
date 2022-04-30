@@ -48,6 +48,9 @@ def parse_args():
     parser.add_argument(
         '-l', '--letter_box', action='store_true',
         help='inference with letterboxed image [False]')
+    parser.add_argument(
+        '-p', '--mjpeg_port', type=int, default=8080,
+        help='MJPEG server port [8080]')    
     args = parser.parse_args()
     return args
 
@@ -90,12 +93,12 @@ def loop_and_detect(cam, trt_yolo, conf_th, vis, nt, mjpeg_server):
         # Put data to Network Tables
         nt.put_data(boxes, confidence, label, fps)
 
-        key = cv2.waitKey(1)
-        if key & 0xFF == ord('q'):
+        # key = cv2.waitKey(1)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-        elif key == ord('F') or key == ord('f'):  # Toggle fullscreen
-            full_scrn = not full_scrn
-            set_display(WINDOW_NAME, full_scrn)
+        # elif key == ord('F') or key == ord('f'):  # Toggle fullscreen
+        #     full_scrn = not full_scrn
+        #     set_display(WINDOW_NAME, full_scrn)
 
 
 def main():
