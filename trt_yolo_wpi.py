@@ -63,12 +63,15 @@ def loop_and_detect(cam, trt_yolo, conf_th, vis, nt, cvSource):
       trt_yolo: the TRT YOLO object detector instance.
       conf_th: confidence/score threshold for object detection.
       vis: for visualization.
+      nt: the WPI Network Tables.
+      cvSource: The source going out to the mjpeg server
     """
     full_scrn = False
     fps = 0.0
     tic = time.time()
     while True:
         if cvSource == False:
+            # In gui mode
             if cv2.getWindowProperty(WINDOW_NAME, 0) < 0:
                 break
 

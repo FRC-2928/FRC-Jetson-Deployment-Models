@@ -143,5 +143,4 @@ class WPINetworkTables():
             self.entry.setString(json.dumps(temp_entry))
             self.fps_entry.setNumber(fps)
             # self.fps_entry.setNumber((self.counter / (time.monotonic() - self.startTime)))
-            self.counter += 1
-            
+            self.counter += 1     
