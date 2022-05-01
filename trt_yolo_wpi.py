@@ -17,7 +17,6 @@ from utils.camera import add_camera_args, Camera
 from utils.display import open_window, set_display, show_fps
 from utils.visualization import BBoxVisualization
 from utils.yolo_with_plugins import TrtYOLO
-# from utils.mjpeg import MjpegServer
 import cscore as cs
 
 from wpi_helpers import ConfigParser, WPINetworkTables, ModelConfigParser, WPINetworkTables
@@ -56,7 +55,7 @@ def parse_args():
     return args
 
 
-def loop_and_detect(cam, trt_yolo, conf_th, vis, nt, mjpeg_server):
+def loop_and_detect(cam, trt_yolo, conf_th, vis, nt, cvSource):
     """Continuously capture images from camera and do object detection.
 
     # Arguments
@@ -69,7 +68,7 @@ def loop_and_detect(cam, trt_yolo, conf_th, vis, nt, mjpeg_server):
     fps = 0.0
     tic = time.time()
     while True:
-        if mjpeg_server == False:
+        if cvSource == False:
             if cv2.getWindowProperty(WINDOW_NAME, 0) < 0:
                 break
 
@@ -84,13 +83,12 @@ def loop_and_detect(cam, trt_yolo, conf_th, vis, nt, mjpeg_server):
         img = vis.draw_bboxes(img, boxes, confidence, label)
         img = show_fps(img, fps)
 
-        if mjpeg_server == False:
+        if cvSource == False:
             # Display stream to desktop window
             cv2.imshow(WINDOW_NAME, img)
         else:               
             # Display stream to browser
-            # mjpeg_server.send_img(img)
-            mjpeg_server.putFrame(img)
+            cvSource.putFrame(img)
 
         toc = time.time()
         curr_fps = 1.0 / (toc - tic)
@@ -101,7 +99,7 @@ def loop_and_detect(cam, trt_yolo, conf_th, vis, nt, mjpeg_server):
         # Put data to Network Tables
         nt.put_data(boxes, confidence, label, fps)
 
-        if mjpeg_server == False:
+        if cvSource == False:
             # key = cv2.waitKey(1)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
@@ -147,8 +145,8 @@ def main():
         WINDOW_NAME, 'Camera TensorRT YOLO Demo',
         cam.img_width, cam.img_height)
         try:
-            loop_and_detect(cam, trt_yolo, model_config.confidence_threshold, vis, nt, 
-                        mjpeg_server=False)
+            loop_and_detect(cam, trt_yolo, model_config.confidence_threshold, 
+                            vis, nt, cvSource=False)
         except Exception as e:
             print(e)
         finally:
@@ -157,19 +155,16 @@ def main():
             cv2.destroyAllWindows()
     else:
         # Use the mjpeg server (default)
-        # mjpeg_server = MjpegServer(port=args.mjpeg_port)
         cvSource = cs.CvSource("cvsource", cs.VideoMode.PixelFormat.kMJPEG, 320, 240, 30)
         mjpeg_server = cs.MjpegServer("httpserver", args.mjpeg_port)
         mjpeg_server.setSource(cvSource)
         print('MJPEG server started on port', args.mjpeg_port)
         try:
-            loop_and_detect(cam, trt_yolo, model_config.confidence_threshold, vis, nt,
-                            mjpeg_server=cvSource)
+            loop_and_detect(cam, trt_yolo, model_config.confidence_threshold, 
+                            vis, nt, cvSource=cvSource)
         except Exception as e:
             print(e)
         finally:
-            print("Shutting down mjpeg server...")
-            mjpeg_server.shutdown()
             print("Releasing camera...")
             cam.release() 
 
