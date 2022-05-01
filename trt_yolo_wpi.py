@@ -1,8 +1,7 @@
-"""trt_yolo_mjpeg.py
-This script demonstrates how to do real-time object detection with
-TensorRT optimized YOLO engine.  Output stream is displayed to a Web browser.
+"""trt_yolo_gui.py
 
-MJPEG version of trt_yolo_gui.py.
+This script demonstrates how to do real-time object detection with
+TensorRT optimized YOLO engine.
 """
 
 
@@ -14,23 +13,33 @@ import cv2
 import pycuda.autoinit  # This is needed for initializing CUDA driver
 
 from pathlib import Path
-from utils.yolo_classes import get_cls_dict
 from utils.camera import add_camera_args, Camera
-from utils.display import show_fps
+from utils.display import open_window, set_display, show_fps
 from utils.visualization import BBoxVisualization
-from utils.mjpeg import MjpegServer
 from utils.yolo_with_plugins import TrtYOLO
+from utils.mjpeg import MjpegServer
+from cscore import CameraServer
 
-from wpi_helpers import ConfigParser, ModelConfigParser, WPINetworkTables
+from wpi_helpers import ConfigParser, WPINetworkTables, ModelConfigParser, WPINetworkTables
+
+
+WINDOW_NAME = 'TrtYOLODemo'
+
 
 def parse_args():
     """Parse input arguments."""
-    desc = 'MJPEG version of trt_yolo'
+    desc = ('Capture and display live camera video, while doing '
+            'real-time object detection with TensorRT optimized '
+            'YOLO model on Jetson')
     parser = argparse.ArgumentParser(description=desc)
     parser = add_camera_args(parser)
     parser.add_argument(
-        '-c', '--category_num', type=int, default=80,
-        help='number of object categories [80]')
+        '-g', '--gui', action='store_true',
+        help='use desktop gui for display [False]')
+    parser.set_defaults(gui=False)    
+    parser.add_argument(
+        '-t', '--conf_thresh', type=float, default=0.3,
+        help='set the detection confidence threshold')
     parser.add_argument(
         '-m', '--model', type=str, required=True,
         help=('[yolov3-tiny|yolov3|yolov3-spp|yolov4-tiny|yolov4|'
@@ -42,7 +51,7 @@ def parse_args():
         help='inference with letterboxed image [False]')
     parser.add_argument(
         '-p', '--mjpeg_port', type=int, default=8080,
-        help='MJPEG server port [8080]')
+        help='MJPEG server port [8080]')    
     args = parser.parse_args()
     return args
 
@@ -55,20 +64,32 @@ def loop_and_detect(cam, trt_yolo, conf_th, vis, nt, mjpeg_server):
       trt_yolo: the TRT YOLO object detector instance.
       conf_th: confidence/score threshold for object detection.
       vis: for visualization.
-      mjpeg_server
     """
+    full_scrn = False
     fps = 0.0
     tic = time.time()
     while True:
+        if mjpeg_server == False:
+            if cv2.getWindowProperty(WINDOW_NAME, 0) < 0:
+                break
+
         img = cam.read()
         if img is None:
             break
+
+        # Get inference output
         boxes, confidence, label = trt_yolo.detect(img, conf_th)
+
+        # Draw bounding boxes and label frame
         img = vis.draw_bboxes(img, boxes, confidence, label)
         img = show_fps(img, fps)
 
-        # Display stream to browser
-        mjpeg_server.send_img(img)
+        if mjpeg_server == False:
+            # Display stream to desktop window
+            cv2.imshow(WINDOW_NAME, img)
+        else:               
+            # Display stream to browser
+            mjpeg_server.send_img(img)
 
         toc = time.time()
         curr_fps = 1.0 / (toc - tic)
@@ -78,6 +99,16 @@ def loop_and_detect(cam, trt_yolo, conf_th, vis, nt, mjpeg_server):
 
         # Put data to Network Tables
         nt.put_data(boxes, confidence, label, fps)
+
+        if mjpeg_server == False:
+            # key = cv2.waitKey(1)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+            # elif key == ord('F') or key == ord('f'):  # Toggle fullscreen
+            #     full_scrn = not full_scrn
+            #     set_display(WINDOW_NAME, full_scrn)
+        if keyboard.is_pressed('q'):
+            break;    
 
 
 def main():
@@ -92,7 +123,7 @@ def main():
     # Get the team number for use in the Network Tables
     config_file = "FRC-Jetson-Deployment-Models/frc.json"
     config_parser = ConfigParser(config_file)    
-
+   
     ## Read the model configuration file
     print("Loading network settings")
     default_config_file = 'FRC-Jetson-Deployment-Models/rapid-react-config.json'
@@ -104,23 +135,37 @@ def main():
 
     # Load the model
     vis = BBoxVisualization(model_config.labelMap)
-    trt_yolo = TrtYOLO(args.model, args.category_num, args.letter_box)
+    trt_yolo = TrtYOLO(args.model, model_config.classes, args.letter_box)
 
     # Connect to WPILib Network Tables
     print("Connecting to Network Tables")
     hardware_type = "USB Camera"
     nt = WPINetworkTables(config_parser.team, hardware_type, model_config.labelMap)
 
-    mjpeg_server = MjpegServer(port=args.mjpeg_port)
-    print('MJPEG server started...')
-    try:
-        loop_and_detect(cam, trt_yolo, conf_th=0.3, vis=vis, nt=nt,
-                        mjpeg_server=mjpeg_server)
-    except Exception as e:
-        print(e)
-    finally:
-        mjpeg_server.shutdown()
+    if args.gui == True:
+        print("Gui requested")
+        open_window(
+        WINDOW_NAME, 'Camera TensorRT YOLO Demo',
+        cam.img_width, cam.img_height)
+        loop_and_detect(cam, trt_yolo, model_config.confidence_threshold, vis, nt, 
+                        mjpeg_server=False)
         cam.release()
+        cv2.destroyAllWindows()
+    else:
+        # Use the mjpeg server (default)
+        mjpeg_server = MjpegServer(port=args.mjpeg_port)
+        # mjpegServer2 = MjpegServer("serve_Blur", 1182)
+        print('MJPEG server started on port', args.mjpeg_port)
+        try:
+            loop_and_detect(cam, trt_yolo, model_config.confidence_threshold, vis, nt,
+                            mjpeg_server=mjpeg_server)
+        except Exception as e:
+            print(e)
+        finally:
+            print("Shutting down mjpeg server...")
+            mjpeg_server.shutdown()
+            print("Releasing camera...")
+            cam.release() 
 
 
 if __name__ == '__main__':
