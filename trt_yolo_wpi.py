@@ -19,7 +19,7 @@ from utils.visualization import BBoxVisualization
 from utils.yolo_with_plugins import TrtYOLO
 import cscore as cs
 
-from wpi_helpers import ConfigParser, WPINetworkTables, ModelConfigParser, WPINetworkTables
+from wpi_helpers import ConfigParser, WPINetworkTables, ModelConfigParser
 
 
 WINDOW_NAME = 'TrtYOLODemo'
@@ -70,7 +70,7 @@ def loop_and_detect(cam, trt_yolo, conf_th, vis, nt, cvSource):
     fps = 0.0
     tic = time.time()
     while True:
-        if cvSource == False:
+        if cvSource is False:
             # In gui mode
             if cv2.getWindowProperty(WINDOW_NAME, 0) < 0:
                 break
@@ -102,7 +102,7 @@ def loop_and_detect(cam, trt_yolo, conf_th, vis, nt, cvSource):
         # Put data to Network Tables
         nt.put_data(boxes, confidence, label, fps)
 
-        if cvSource == False:
+        if cvSource is False:
             # key = cv2.waitKey(1)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
@@ -142,7 +142,7 @@ def main():
     hardware_type = "USB Camera"
     nt = WPINetworkTables(config_parser.team, hardware_type, model_config.labelMap)
 
-    if args.gui == True:
+    if args.gui is True:
         print("Gui requested")
         open_window(
         WINDOW_NAME, 'Camera TensorRT YOLO Demo',
